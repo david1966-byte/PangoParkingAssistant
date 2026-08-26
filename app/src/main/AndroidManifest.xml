@@ -15,6 +15,13 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- נדרש מאנדרואיד 11 ומעלה כדי שהאפליקציה תוכל לבדוק אם פנגו מותקנת ולפתוח אותה -->
+    <queries>
+        <package android:name="com.unicell.pangoandroid" />
+        <package android:name="com.pango.customerapp" />
+        <package android:name="il.co.pango.pango" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
