@@ -13,12 +13,6 @@ import com.google.android.gms.location.ActivityTransitionResult
 import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.location.LocationServices
 
-/**
- * מקבל את אירועי המעבר בין מצבים (למשל: "התחלת נסיעה" / "סיום נסיעה")
- * ומגיב בהתאם:
- *  - כניסה למצב IN_VEHICLE -> שולח התראה שמזכירה לסיים חניה בפנגו
- *  - יציאה ממצב IN_VEHICLE -> שומר את המיקום הנוכחי כ"מקום החניה"
- */
 class ActivityTransitionReceiver : BroadcastReceiver() {
 
     @SuppressLint("MissingPermission")
@@ -26,6 +20,16 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
         if (!ActivityTransitionResult.hasResult(intent)) return
         val result = ActivityTransitionResult.extractResult(intent) ?: return
         val repository = ParkingRepository(context)
+
+        val pendingResult = goAsync()
+        var pendingOps = 0
+
+        fun opDone() {
+            pendingOps--
+            if (pendingOps <= 0) {
+                pendingResult.finish()
+            }
+        }
 
         for (event: ActivityTransitionEvent in result.transitionEvents) {
             if (event.activityType != DetectedActivity.IN_VEHICLE) continue
@@ -35,37 +39,60 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
                     Log.d(TAG, "זוהתה תחילת נסיעה")
                     repository.setCurrentlyDriving(true)
                     NotificationHelper.showDriveStartedAlert(context)
+
+                    pendingOps++
+                    TtsHelper.speak(
+                        context,
+                        "התחלת נסיעה. אל תשכח לסיים את החניה באפליקציית פנגו"
+                    ) { opDone() }
                 }
 
                 com.google.android.gms.location.ActivityTransition.ACTIVITY_TRANSITION_EXIT -> {
                     Log.d(TAG, "זוהה סיום נסיעה - שומר מיקום חניה")
                     repository.setCurrentlyDriving(false)
-                    saveCurrentLocationAsParking(context, repository)
+
+                    pendingOps++
+                    saveCurrentLocationAsParking(context, repository) { opDone() }
                 }
             }
+        }
+
+        if (pendingOps == 0) {
+            pendingResult.finish()
         }
     }
 
     @SuppressLint("MissingPermission")
-    private fun saveCurrentLocationAsParking(context: Context, repository: ParkingRepository) {
+    private fun saveCurrentLocationAsParking(
+        context: Context,
+        repository: ParkingRepository,
+        onDone: () -> Unit
+    ) {
         val hasFineLocation = ContextCompat.checkSelfPermission(
             context, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!hasFineLocation) {
             Log.w(TAG, "אין הרשאת מיקום - לא ניתן לשמור את נקודת החניה")
+            onDone()
             return
         }
 
         val fusedClient = LocationServices.getFusedLocationProviderClient(context)
-        fusedClient.lastLocation.addOnSuccessListener { location ->
-            if (location != null) {
-                repository.saveParkingLocation(location.latitude, location.longitude)
-                NotificationHelper.showParkedNotification(context)
-            } else {
-                Log.w(TAG, "lastLocation חזר null - אין נקודת מיקום אחרונה זמינה")
+        fusedClient.lastLocation
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    repository.saveParkingLocation(location.latitude, location.longitude)
+                    NotificationHelper.showParkedNotification(context)
+                } else {
+                    Log.w(TAG, "lastLocation חזר null - אין נקודת מיקום אחרונה זמינה")
+                }
+                onDone()
             }
-        }
+            .addOnFailureListener {
+                Log.e(TAG, "שליפת מיקום נכשלה: ${it.message}")
+                onDone()
+            }
     }
 
     companion object {
