@@ -1,0 +1,5 @@
+<resources>
+    <color name="state_off">#9E9E9E</color>
+    <color name="state_driving">#E53935</color>
+    <color name="state_parked">#43A047</color>
+</resources>
