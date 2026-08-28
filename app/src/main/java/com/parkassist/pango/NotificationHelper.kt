@@ -14,8 +14,9 @@ object NotificationHelper {
     const val ALERT_CHANNEL_ID = "parking_alert_channel"
 
     const val SERVICE_NOTIFICATION_ID = 1001
-    const val DRIVE_ALERT_NOTIFICATION_ID = 1002
-    const val PARKED_NOTIFICATION_ID = 1003
+    // התראות "התחלת נסיעה" ו"נשמר מיקום חניה" חולקות אותו מזהה בכוונה,
+    // כדי שההתראה החדשה תמיד תחליף את הקודמת ולא תצטבר איתה בוילון
+    const val STATUS_NOTIFICATION_ID = 1002
 
     fun createChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -77,7 +78,7 @@ object NotificationHelper {
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(DRIVE_ALERT_NOTIFICATION_ID, notification)
+        manager.notify(STATUS_NOTIFICATION_ID, notification)
     }
 
     /** התראה: זוהתה חניה - המיקום נשמר */
@@ -91,13 +92,13 @@ object NotificationHelper {
         val notification = NotificationCompat.Builder(context, ALERT_CHANNEL_ID)
             .setContentTitle("🅿️ מיקום החניה נשמר")
             .setContentText("תוכל למצוא את הרכב שלך דרך האפליקציה")
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(PARKED_NOTIFICATION_ID, notification)
+        manager.notify(STATUS_NOTIFICATION_ID, notification)
     }
 }
