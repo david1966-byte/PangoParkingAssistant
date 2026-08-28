@@ -45,7 +45,10 @@ class ParkingRepository(context: Context) {
     }
 
     fun getParkingTimestamp(): Long = prefs.getLong(KEY_TIMESTAMP, 0L)
-
+    fun getParkingTimestamp(): Long = prefs.getLong(KEY_TIMESTAMP, 0L)
+    fun unregisterChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        prefs.unregisterOnSharedPreferenceChangeListener(listener)
+    }
     companion object {
         private const val PREFS_NAME = "pango_parking_prefs"
         private const val KEY_MONITORING_ENABLED = "monitoring_enabled"
