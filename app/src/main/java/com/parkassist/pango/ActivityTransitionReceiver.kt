@@ -39,12 +39,10 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
                     Log.d(TAG, "זוהתה תחילת נסיעה")
                     repository.setCurrentlyDriving(true)
                     NotificationHelper.showDriveStartedAlert(context)
-
-                    pendingOps++
                     TtsHelper.speak(
                         context,
                         "התחלת נסיעה. אל תשכח לסיים את החניה באפליקציית פנגו"
-                    ) { opDone() }
+                    )
                 }
 
                 com.google.android.gms.location.ActivityTransition.ACTIVITY_TRANSITION_EXIT -> {
