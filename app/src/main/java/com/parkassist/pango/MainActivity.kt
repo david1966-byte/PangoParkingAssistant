@@ -2,7 +2,9 @@ package com.parkassist.pango
 
 import android.Manifest
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -18,6 +20,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var repository: ParkingRepository
+
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        runOnUiThread { updateUi() }
+    }
 
     private val permissionsLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
@@ -59,7 +65,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        repository.registerChangeListener(prefsListener)
         updateUi()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        repository.unregisterChangeListener(prefsListener)
     }
 
     private fun requiredPermissions(): Array<String> {
@@ -73,7 +85,6 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
-        // הרשאת מיקום ברקע נדרשת בנפרד בגרסאות חדשות - מטופלת אחרי שאר ההרשאות מאושרות
         return permissions.toTypedArray()
     }
 
@@ -116,8 +127,6 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == BACKGROUND_LOCATION_REQUEST_CODE) {
-            // גם אם המשתמש דחה מיקום-ברקע, נפעיל בכל זאת עם הרשאות המיקום הרגילות
-            // (המעקב עלול להיות פחות אמין כשהאפליקציה סגורה לגמרי)
             startMonitoring()
         }
     }
@@ -149,7 +158,6 @@ class MainActivity : AppCompatActivity() {
         if (intent.resolveActivity(packageManager) != null) {
             startActivity(intent)
         } else {
-            // Google Maps לא מותקן - ניפול חזרה לקישור מפה כללי בדפדפן
             val webUri = Uri.parse("https://maps.google.com/?q=$lat,$lng")
             startActivity(Intent(Intent.ACTION_VIEW, webUri))
         }
@@ -157,12 +165,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUi() {
         val monitoring = repository.isMonitoringEnabled()
+        val driving = repository.isCurrentlyDriving()
+
         binding.toggleMonitoringButton.text =
             if (monitoring) "כבה מעקב נסיעה/חניה" else "הפעל מעקב נסיעה/חניה"
 
+        val stateColor = when {
+            !monitoring -> ContextCompat.getColor(this, R.color.state_off)
+            driving -> ContextCompat.getColor(this, R.color.state_driving)
+            else -> ContextCompat.getColor(this, R.color.state_parked)
+        }
+        binding.toggleMonitoringButton.backgroundTintList = ColorStateList.valueOf(stateColor)
+
         binding.statusText.text = if (monitoring) {
-            if (repository.isCurrentlyDriving()) "מעקב פעיל · הרכב כרגע בנסיעה"
-            else "מעקב פעיל · הרכב במצב חניה"
+            if (driving) "מעקב פעיל · הרכב כרגע בנסיעה" else "מעקב פעיל · הרכב במצב חניה"
         } else {
             "המעקב כבוי"
         }
