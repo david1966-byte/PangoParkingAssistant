@@ -42,8 +42,32 @@
         android:id="@+id/openPangoButton"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="16dp"
         android:text="פתח את אפליקציית פנגו" />
+
+    <Button
+        android:id="@+id/testVoiceButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="8dp"
+        android:text="🔊 בדוק חיווי קולי" />
+
+    <Button
+        android:id="@+id/carBluetoothButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="4dp"
+        android:text="🔵 בחר בלוטות' רכב (לזיהוי מהיר)" />
+
+    <TextView
+        android:id="@+id/carBluetoothInfoText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:textSize="13sp"
+        android:textColor="#666666"
+        android:text="לא נבחר - יזוהה כל חיבור בלוטות'" />
 
     <TextView
         android:id="@+id/parkingInfoText"
