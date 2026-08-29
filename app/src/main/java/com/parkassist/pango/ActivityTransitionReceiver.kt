@@ -36,13 +36,8 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
 
             when (event.transitionType) {
                 com.google.android.gms.location.ActivityTransition.ACTIVITY_TRANSITION_ENTER -> {
-                    Log.d(TAG, "זוהתה תחילת נסיעה")
-                    repository.setCurrentlyDriving(true)
-                    NotificationHelper.showDriveStartedAlert(context)
-                    TtsHelper.speak(
-                        context,
-                        "התחלת נסיעה. אל תשכח לסיים את החניה באפליקציית פנגו"
-                    )
+                    Log.d(TAG, "זוהתה תחילת נסיעה (Activity Recognition)")
+                    DriveEventHandler.onDriveStarted(context, repository)
                 }
 
                 com.google.android.gms.location.ActivityTransition.ACTIVITY_TRANSITION_EXIT -> {
