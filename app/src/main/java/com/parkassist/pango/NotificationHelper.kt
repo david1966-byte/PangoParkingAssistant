@@ -14,9 +14,8 @@ object NotificationHelper {
     const val ALERT_CHANNEL_ID = "parking_alert_channel"
 
     const val SERVICE_NOTIFICATION_ID = 1001
-    // התראות "התחלת נסיעה" ו"נשמר מיקום חניה" חולקות אותו מזהה בכוונה,
-    // כדי שההתראה החדשה תמיד תחליף את הקודמת ולא תצטבר איתה בוילון
     const val STATUS_NOTIFICATION_ID = 1002
+    const val BT_DEBUG_NOTIFICATION_ID = 1004
 
     fun createChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -58,7 +57,6 @@ object NotificationHelper {
             .build()
     }
 
-    /** התראה: הנסיעה התחילה - להזכיר לסיים חניה בפנגו */
     fun showDriveStartedAlert(context: Context) {
         val openPangoIntent = Intent(context, PangoActionReceiver::class.java).apply {
             action = PangoActionReceiver.ACTION_OPEN_PANGO
@@ -81,7 +79,6 @@ object NotificationHelper {
         manager.notify(STATUS_NOTIFICATION_ID, notification)
     }
 
-    /** התראה: זוהתה חניה - המיקום נשמר */
     fun showParkedNotification(context: Context) {
         val findParkingIntent = Intent(context, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -92,13 +89,26 @@ object NotificationHelper {
         val notification = NotificationCompat.Builder(context, ALERT_CHANNEL_ID)
             .setContentTitle("🅿️ מיקום החניה נשמר")
             .setContentText("תוכל למצוא את הרכב שלך דרך האפליקציה")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(STATUS_NOTIFICATION_ID, notification)
+    }
+
+    fun showFastDetectionActiveNotification(context: Context) {
+        val notification = NotificationCompat.Builder(context, SERVICE_CHANNEL_ID)
+            .setContentTitle("🔵 זוהה חיבור לרכב")
+            .setContentText("עוקב אחרי מהירות לזיהוי מהיר של תחילת נסיעה")
+            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setAutoCancel(true)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(BT_DEBUG_NOTIFICATION_ID, notification)
     }
 }
