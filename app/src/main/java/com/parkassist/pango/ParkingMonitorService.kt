@@ -2,7 +2,9 @@ package com.parkassist.pango
 
 import android.app.PendingIntent
 import android.app.Service
+import android.bluetooth.BluetoothDevice
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.IBinder
 import android.util.Log
 import com.google.android.gms.location.ActivityRecognition
@@ -10,20 +12,22 @@ import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.location.DetectedActivity
 
-/**
- * שירות קדמה (Foreground Service) שאחראי על:
- * 1. הרשמה למעברי פעילות (IN_VEHICLE - כניסה/יציאה) מול Activity Recognition API
- * 2. החזקת התראה קבועה כדי שהמערכת לא תהרוג את המעקב ברקע
- * 3. חימום מנוע ה-TTS מראש כדי שהחיווי הקולי יהיה מיידי
- */
 class ParkingMonitorService : Service() {
+
+    private val carBluetoothReceiver = CarBluetoothReceiver()
 
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.createChannels(this)
         startForeground(NotificationHelper.SERVICE_NOTIFICATION_ID, NotificationHelper.buildServiceNotification(this))
         registerActivityTransitions()
-        TtsHelper.init(this) // מחמם את מנוע הקול מראש כדי שיהיה מוכן מיד כשמתחילים לנסוע
+        TtsHelper.init(this)
+
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+        }
+        registerReceiver(carBluetoothReceiver, filter)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -36,6 +40,12 @@ class ParkingMonitorService : Service() {
         super.onDestroy()
         unregisterActivityTransitions()
         TtsHelper.shutdown()
+        FastDriveDetector.stop(this)
+        try {
+            unregisterReceiver(carBluetoothReceiver)
+        } catch (e: IllegalArgumentException) {
+            // כבר לא רשום - אין בעיה
+        }
     }
 
     private fun getTransitionPendingIntent(): PendingIntent {
@@ -61,7 +71,6 @@ class ParkingMonitorService : Service() {
         val request = ActivityTransitionRequest(transitions)
         val pendingIntent = getTransitionPendingIntent()
 
-        // הערה: קריאה זו דורשת שהרשאת ACTIVITY_RECOGNITION כבר אושרה על ידי המשתמש
         val task = ActivityRecognition.getClient(this)
             .requestActivityTransitionUpdates(request, pendingIntent)
 
