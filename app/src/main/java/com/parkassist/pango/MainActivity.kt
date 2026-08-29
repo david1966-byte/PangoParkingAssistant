@@ -1,6 +1,7 @@
 package com.parkassist.pango
 
 import android.Manifest
+import android.bluetooth.BluetoothManager
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -8,6 +9,7 @@ import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -58,6 +60,15 @@ class MainActivity : AppCompatActivity() {
 
         binding.openPangoButton.setOnClickListener {
             PangoLauncher.openPango(this)
+        }
+
+        binding.testVoiceButton.setOnClickListener {
+            TtsHelper.init(applicationContext)
+            TtsHelper.speak(applicationContext, "זהו חיווי קולי לבדיקה. אם אתה שומע את זה, החיווי הקולי עובד תקין")
+        }
+
+        binding.carBluetoothButton.setOnClickListener {
+            pickCarBluetoothDevice()
         }
 
         updateUi()
@@ -126,8 +137,18 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == BACKGROUND_LOCATION_REQUEST_CODE) {
-            startMonitoring()
+        when (requestCode) {
+            BACKGROUND_LOCATION_REQUEST_CODE -> {
+                startMonitoring()
+            }
+            BLUETOOTH_PERMISSION_REQUEST_CODE -> {
+                val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                if (granted) {
+                    showBluetoothDevicePicker()
+                } else {
+                    binding.statusText.text = "אין הרשאת בלוטות' - לא ניתן להציג את רשימת המכשירים המזווגים."
+                }
+            }
         }
     }
 
@@ -163,6 +184,62 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun pickCarBluetoothDevice() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!hasPermission) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.BLUETOOTH_CONNECT),
+                    BLUETOOTH_PERMISSION_REQUEST_CODE
+                )
+                return
+            }
+        }
+        showBluetoothDevicePicker()
+    }
+
+    @Suppress("MissingPermission")
+    private fun showBluetoothDevicePicker() {
+        val bluetoothManager = getSystemService(BluetoothManager::class.java)
+        val adapter = bluetoothManager?.adapter
+
+        if (adapter == null) {
+            binding.statusText.text = "בלוטות' לא נתמך במכשיר הזה."
+            return
+        }
+
+        val bondedDevices = try {
+            adapter.bondedDevices?.toList() ?: emptyList()
+        } catch (e: SecurityException) {
+            emptyList()
+        }
+
+        if (bondedDevices.isEmpty()) {
+            binding.statusText.text = "לא נמצאו מכשירי בלוטות' מזווגים. יש לזווג קודם עם הרכב דרך הגדרות המכשיר."
+            return
+        }
+
+        val deviceLabels = bondedDevices.map { it.name ?: it.address }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("בחר את בלוטות' הרכב")
+            .setItems(deviceLabels) { _, which ->
+                val selected = bondedDevices[which]
+                repository.saveCarBluetoothDevice(selected.address, selected.name ?: selected.address)
+                updateUi()
+            }
+            .setNeutralButton("נקה בחירה") { _, _ ->
+                repository.clearCarBluetoothDevice()
+                updateUi()
+            }
+            .setNegativeButton("ביטול", null)
+            .show()
+    }
+
     private fun updateUi() {
         val monitoring = repository.isMonitoringEnabled()
         val driving = repository.isCurrentlyDriving()
@@ -183,6 +260,13 @@ class MainActivity : AppCompatActivity() {
             "המעקב כבוי"
         }
 
+        val carBtName = repository.getCarBluetoothDeviceName()
+        binding.carBluetoothInfoText.text = if (carBtName != null) {
+            "בלוטות' רכב מוגדר: $carBtName"
+        } else {
+            "לא נבחר - יזוהה כל חיבור בלוטות'"
+        }
+
         val location = repository.getParkingLocation()
         if (location != null) {
             val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("iw", "IL"))
@@ -196,5 +280,6 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val BACKGROUND_LOCATION_REQUEST_CODE = 501
+        private const val BLUETOOTH_PERMISSION_REQUEST_CODE = 502
     }
 }
