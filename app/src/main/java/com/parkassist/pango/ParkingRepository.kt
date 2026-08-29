@@ -3,12 +3,6 @@ package com.parkassist.pango
 import android.content.Context
 import android.content.SharedPreferences
 
-/**
- * שכבת אחסון פשוטה (SharedPreferences) לשמירת:
- * - מיקום החניה האחרון (קו רוחב/אורך + זמן)
- * - האם המעקב פעיל
- * - האם הרכב נחשב כרגע "בנסיעה"
- */
 class ParkingRepository(context: Context) {
 
     private val prefs: SharedPreferences =
@@ -52,7 +46,23 @@ class ParkingRepository(context: Context) {
 
     fun unregisterChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
         prefs.unregisterOnSharedPreferenceChangeListener(listener)
-    }   
+    }
+
+    fun saveCarBluetoothDevice(address: String, name: String) {
+        prefs.edit()
+            .putString(KEY_CAR_BT_ADDRESS, address)
+            .putString(KEY_CAR_BT_NAME, name)
+            .apply()
+    }
+
+    fun getCarBluetoothDeviceAddress(): String? = prefs.getString(KEY_CAR_BT_ADDRESS, null)
+
+    fun getCarBluetoothDeviceName(): String? = prefs.getString(KEY_CAR_BT_NAME, null)
+
+    fun clearCarBluetoothDevice() {
+        prefs.edit().remove(KEY_CAR_BT_ADDRESS).remove(KEY_CAR_BT_NAME).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "pango_parking_prefs"
         private const val KEY_MONITORING_ENABLED = "monitoring_enabled"
@@ -61,5 +71,7 @@ class ParkingRepository(context: Context) {
         private const val KEY_LNG = "parking_lng"
         private const val KEY_TIMESTAMP = "parking_timestamp"
         private const val KEY_HAS_LOCATION = "has_location"
+        private const val KEY_CAR_BT_ADDRESS = "car_bt_address"
+        private const val KEY_CAR_BT_NAME = "car_bt_name"
     }
 }
