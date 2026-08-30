@@ -8,6 +8,7 @@ object DriveEventHandler {
 
         repository.setCurrentlyDriving(true)
         FastDriveDetector.stop(context)
+        NotificationHelper.cancelFastDetectionNotification(context)
         NotificationHelper.showDriveStartedAlert(context)
         TtsHelper.speak(context, "התחלת נסיעה. אל תשכח לסיים את החניה באפליקציית פנגו")
     }
