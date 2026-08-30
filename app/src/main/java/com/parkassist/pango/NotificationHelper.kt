@@ -99,16 +99,26 @@ object NotificationHelper {
         manager.notify(STATUS_NOTIFICATION_ID, notification)
     }
 
+    /** התראה קצרה לאימות: זוהתה התחברות לבלוטות' הרכב, בדיקת מהירות מהירה הופעלה */
     fun showFastDetectionActiveNotification(context: Context) {
-        val notification = NotificationCompat.Builder(context, SERVICE_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, SERVICE_CHANNEL_ID)
             .setContentTitle("🔵 זוהה חיבור לרכב")
             .setContentText("עוקב אחרי מהירות לזיהוי מהיר של תחילת נסיעה")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setAutoCancel(true)
-            .build()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder.setTimeoutAfter(30_000) // נעלמת לבד אחרי 30 שניות, גם אם לא לוחצים עליה
+        }
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(BT_DEBUG_NOTIFICATION_ID, notification)
+        manager.notify(BT_DEBUG_NOTIFICATION_ID, builder.build())
+    }
+
+    /** מבטל את התראת "זוהה חיבור לרכב" מיד - למשל ברגע שהנסיעה בפועל כבר זוהתה */
+    fun cancelFastDetectionNotification(context: Context) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(BT_DEBUG_NOTIFICATION_ID)
     }
 }
