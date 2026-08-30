@@ -6,6 +6,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.ActivityTransitionEvent
@@ -20,38 +22,34 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
         if (!ActivityTransitionResult.hasResult(intent)) return
         val result = ActivityTransitionResult.extractResult(intent) ?: return
         val repository = ParkingRepository(context)
-
-        val pendingResult = goAsync()
-        var pendingOps = 0
-
-        fun opDone() {
-            pendingOps--
-            if (pendingOps <= 0) {
-                pendingResult.finish()
-            }
-        }
+        val appContext = context.applicationContext
 
         for (event: ActivityTransitionEvent in result.transitionEvents) {
             if (event.activityType != DetectedActivity.IN_VEHICLE) continue
 
             when (event.transitionType) {
                 com.google.android.gms.location.ActivityTransition.ACTIVITY_TRANSITION_ENTER -> {
+                    pendingExitRunnable?.let { debounceHandler.removeCallbacks(it) }
+                    pendingExitRunnable = null
+
                     Log.d(TAG, "זוהתה תחילת נסיעה (Activity Recognition)")
-                    DriveEventHandler.onDriveStarted(context, repository)
+                    DriveEventHandler.onDriveStarted(appContext, repository)
                 }
 
                 com.google.android.gms.location.ActivityTransition.ACTIVITY_TRANSITION_EXIT -> {
-                    Log.d(TAG, "זוהה סיום נסיעה - שומר מיקום חניה")
-                    repository.setCurrentlyDriving(false)
+                    Log.d(TAG, "זוהה סיום נסיעה אפשרי - ממתין $EXIT_DEBOUNCE_SECONDS שניות לוודא שזו לא עצירה זמנית")
 
-                    pendingOps++
-                    saveCurrentLocationAsParking(context, repository) { opDone() }
+                    pendingExitRunnable?.let { debounceHandler.removeCallbacks(it) }
+                    val runnable = Runnable {
+                        Log.d(TAG, "אושר סיום נסיעה בפועל - שומר מיקום חניה")
+                        repository.setCurrentlyDriving(false)
+                        saveCurrentLocationAsParking(appContext, repository) {}
+                        pendingExitRunnable = null
+                    }
+                    pendingExitRunnable = runnable
+                    debounceHandler.postDelayed(runnable, EXIT_DEBOUNCE_SECONDS * 1000L)
                 }
             }
-        }
-
-        if (pendingOps == 0) {
-            pendingResult.finish()
         }
     }
 
@@ -90,5 +88,9 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "ActivityTransitionRcvr"
+        private const val EXIT_DEBOUNCE_SECONDS = 45L
+
+        private val debounceHandler = Handler(Looper.getMainLooper())
+        private var pendingExitRunnable: Runnable? = null
     }
 }
