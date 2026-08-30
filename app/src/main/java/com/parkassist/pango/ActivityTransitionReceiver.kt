@@ -75,6 +75,7 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
                 if (location != null) {
                     repository.saveParkingLocation(location.latitude, location.longitude)
                     NotificationHelper.showParkedNotification(context)
+                    TtsHelper.speak(context, "מיקום החניה נשמר")
                 } else {
                     Log.w(TAG, "lastLocation חזר null - אין נקודת מיקום אחרונה זמינה")
                 }
